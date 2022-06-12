@@ -1,0 +1,80 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/mnt/d/CLion/b+ tree/bpt.h
+iostream
+-
+functional
+-
+cstddef
+-
+fstream
+-
+cstring
+-
+vector.hpp
+/mnt/d/CLion/b+ tree/vector.hpp
+utility.hpp
+/mnt/d/CLion/b+ tree/utility.hpp
+exceptions.hpp
+/mnt/d/CLion/b+ tree/exceptions.hpp
+linked_hashmap.hpp
+/mnt/d/CLion/b+ tree/linked_hashmap.hpp
+
+/mnt/d/CLion/b+ tree/exceptions.hpp
+cstddef
+-
+cstring
+-
+string
+-
+
+/mnt/d/CLion/b+ tree/linked_hashmap.hpp
+functional
+-
+cstddef
+-
+utility.hpp
+/mnt/d/CLion/b+ tree/utility.hpp
+exceptions.hpp
+/mnt/d/CLion/b+ tree/exceptions.hpp
+
+/mnt/d/CLion/b+ tree/main.cpp
+iostream
+-
+bpt.h
+/mnt/d/CLion/b+ tree/bpt.h
+string.hpp
+/mnt/d/CLion/b+ tree/string.hpp
+
+/mnt/d/CLion/b+ tree/string.hpp
+utility
+-
+iostream
+-
+cstring
+-
+cstdio
+-
+cmath
+-
+fstream
+-
+
+/mnt/d/CLion/b+ tree/utility.hpp
+utility
+-
+
+/mnt/d/CLion/b+ tree/vector.hpp
+exceptions.hpp
+/mnt/d/CLion/b+ tree/exceptions.hpp
+climits
+-
+cstddef
+-
+
