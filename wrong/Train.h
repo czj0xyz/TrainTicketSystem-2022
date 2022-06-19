@@ -78,26 +78,24 @@ public:
 
 class Left_Ticket {
 private:
-    int data[M][M];
+    int data[M];
 
 public:
     Left_Ticket() {}
 
-    Left_Ticket(const int &maxday, const int &stationNum, const int &seat) {
-        for (int i = 0; i <= maxday; i++)
+    Left_Ticket(const int &stationNum, const int &seat) {
             for (int j = 0; j < stationNum; j++)
-                data[i][j] = seat;
+                data[j] = seat;
     }
 
-    inline void Update_ticket(const int &k, const int &l, const int &r, const int &num) {
-        for (int *x = data[k], i = l; i < r; i++)x[i] -= num;
+    inline void Update_ticket(const int &l, const int &r, const int &num) {
+        for (int i = l; i < r; i++)data[i] -= num;
     }
 
-    inline int query_ticket(const int &k, const int &l, const int &r) const {
+    inline int query_ticket(const int &l, const int &r) const {
         int ret = 2e9;
-        const int *x = data[k];
         for (int i = l; i < r; i++)
-            if (x[i] < ret)ret = x[i];
+            if (data[i] < ret)ret = data[i];
         return ret;
     }
 
@@ -109,12 +107,12 @@ private:
     sjtu::linked_hashmap<size_t, Basictrain > bas;
     sjtu::linked_hashmap<size_t, sjtu::string> trainid;
 
-    sjtu::bpt<size_t, train,340,4,1>tra;
-    sjtu::bpt<size_t, Left_Ticket,340,4,1> Tk;
-    sjtu::bpt<type3, Stations,204,73,1> sta;
+    sjtu::bpt<size_t, train,340,4,2>tra;
+    sjtu::bpt<sjtu::pair<size_t,int> , Left_Ticket,204,9,4> Tk;
+    sjtu::bpt<type3, Stations,204,73,4> sta;
 
-    sjtu::bpt<type1, Ticket ,204,25,1> Get_ticket;//(username,kth) -> Ticket
-    sjtu::bpt<sjtu::pair<type1,int>, Pendtype,146,85,1> inqu_ticket;//((trainID,kth),timestamp) -> (username,Ticket)
+    sjtu::bpt<type1, Ticket ,204,25,2> Get_ticket;//(username,kth) -> Ticket
+    sjtu::bpt<sjtu::pair<type1,int>, Pendtype,146,85,2> inqu_ticket;//((trainID,kth),timestamp) -> (username,Ticket)
     sjtu::bpt<size_t, int,340,255,1> Num;//username -> tt
 
 public:
@@ -180,7 +178,7 @@ void TrainManagement::Print(){
 int TrainManagement::query_ticket(const sjtu::string &trainID_, const Date &date, const sjtu::string From_,const sjtu::string To_) {
     size_t trainID = H(trainID_.change()),From=H(From_.change()),To=H(To_.change());
     auto L=sta.find(type3(From,trainID)),R=sta.find(type3(To,trainID));
-    return Tk.find(trainID).query_ticket(date-L.lef,L.pos,R.pos);
+    return Tk.find(type1(trainID,date-L.lef)).query_ticket(L.pos,R.pos);
 }
 
 TrainManagement::TrainManagement() : tra("file_train.dat","file_train2.dat", "file_train_delete.dat","file_train2_delete.dat"),
@@ -210,7 +208,8 @@ void TrainManagement::add_train(const std::string &trainID_, const int &stationN
     bas[trainID]=Basictrain(saleDateR_-saleDateL_,seatNum);
     trainid[trainID]=sjtu::string(trainID_);
     tra.insert(trainID,train(sjtu::string(trainID_),stationNum_,stations_,seatNum,prices_,travelTimes_,stopoverTimes_,startTime_,saleDateL_,saleDateR_,type_));
-    Tk.insert(trainID,Left_Ticket(saleDateR_-saleDateL_,stationNum_,seatNum));
+    for(int i=0;i<=saleDateR_-saleDateL_;i++)
+        Tk.insert(type1(trainID,i),Left_Ticket(stationNum_,seatNum));
     puts("0");
 }
 
@@ -218,10 +217,15 @@ void TrainManagement::delete_train(const std::string &trainID_) {
     size_t trainID = H(trainID_);
     if(!bas.count(trainID)||bas[trainID].rel==1)return void(puts("-1"));
     tra.erase(trainID);
+    for(int i=0;i<=bas[trainID].maxday;i++){
+        std::cerr<<Tk.count(type1(trainID,i))<<"##"<<std::endl;
+        Tk.erase(type1(trainID,i));
+        std::cerr<<Tk.count(type1(trainID,i))<<"###"<<std::endl;
+    }
     bas.erase(bas.find(trainID));
     trainid.erase(trainid.find(trainID));
-    Tk.erase(trainID);
     puts("0");
+    std::cerr<<trainID_<<std::endl;
 }
 
 void TrainManagement::release_train(const std::string &trainID_, const int &timestamp) {
@@ -244,7 +248,7 @@ void TrainManagement::query_train(const std::string &trainID_,const Date &date){
     std::cout<<trainID_;
     printf(" %c\n",x.Type);
 	int k=date-x.saleDateL,cost=0;
-    const Left_Ticket &tk=Tk.find(trainID);
+    const Left_Ticket &tk=Tk.find(type1(trainID,k));
 	Date now(date.m,date.d,x.saleDateL.hr,x.saleDateL.mi);
 	for(int i=0;i<x.stationNum;i++){
 		x.stations[i].print();
@@ -267,7 +271,7 @@ void TrainManagement::query_train(const std::string &trainID_,const Date &date){
 		}
 		printf(" %d ",cost); 
 		if(i==x.stationNum-1)puts("x");
-		else printf("%d\n",tk.data[k][i]);
+		else printf("%d\n",tk.data[i]);
 	}
 }
 
@@ -275,13 +279,13 @@ inline Ticket2 TrainManagement::get_ticket(const sjtu::string &trainID_,const St
     size_t trainID=H(trainID_.change());
     int k=date-L.lef;
     if(k<0||k>bas[trainID].maxday)return Ticket2();
-    return Ticket2(trainID_,L.lef.ad_day(k),R.ari.ad_day(k),R.pri-L.pri,Tk.find(trainID).query_ticket(k,L.pos,R.pos),R.ari.get_time(L.lef));
+    return Ticket2(trainID_,L.lef.ad_day(k),R.ari.ad_day(k),R.pri-L.pri,Tk.find(type1(trainID,k)).query_ticket(L.pos,R.pos),R.ari.get_time(L.lef));
 }
 
 void TrainManagement::Update_ticket(const size_t &trainID,const int &k,const int &l,const int &r,const int &num){
-    auto now=Tk.find(trainID);
-    now.Update_ticket(k,l,r,num);
-    Tk.modify(trainID,now);
+    auto now=Tk.find(type1(trainID,k));
+    now.Update_ticket(l,r,num);
+    Tk.modify(type1(trainID,k),now);
 }
 
 void TrainManagement::buy_ticket(const std::string &username,const std::string &trainID_, const Date &date, const std::string From_,
@@ -310,10 +314,10 @@ void TrainManagement::buy_ticket(const std::string &username,const std::string &
 
 void TrainManagement::Update_ticket(const Ticket &t) {
     size_t trainID = H(t.trainID.change()),From=H(t.From.change()),To=H(t.To.change());
-    auto now = Tk.find(trainID);
     auto L=sta.find(type3(From,trainID)),R=sta.find(type3(To,trainID));
-    now.Update_ticket(t.TimeL - L.lef, L.pos, R.pos, t.num);
-    Tk.modify(trainID, now);
+    auto now = Tk.find(type1(trainID,t.TimeL - L.lef));
+    now.Update_ticket(L.pos, R.pos, t.num);
+    Tk.modify(type1(trainID,t.TimeL - L.lef), now);
 }
 
 Ticket2 A[M*M],tmp[M*M];
@@ -387,7 +391,7 @@ TrainManagement::get_ticket2(const sjtu::string trainID_, const Stations &Lx, co
     int mi=Rx.ari.get_time(Lx.lef);
     date.hr = L.hr, date.mi = L.mi;
     return sjtu::pair<int, Ticket2>(Ret, Ticket2(trainID_, date, date + mi, Rx.pri-Lx.pri,
-                                               Tk.find(trainID).query_ticket(date - L, Lx.pos, Rx.pos), mi));
+                                               Tk.find(type1(trainID,date - L)).query_ticket(Lx.pos, Rx.pos), mi));
 }
 
 void TrainManagement::query_transfer(const std::string &From, const std::string &To, const Date &date, bool flag) {
@@ -497,18 +501,18 @@ void TrainManagement::refund_ticket(const size_t &username, const int &k) {
         const type1 res(trainID,K);
         if(!inqu_ticket.empty()){
             const sjtu::vector< sjtu::pair<sjtu::pair<type1,int>,Pendtype> > &vec=inqu_ticket.traverse_val(  sjtu::pair<type1,int>(res,0),sjtu::pair<type1,int>(res,2e9)  );
-            Left_Ticket tk=Tk.find(trainID);
+            Left_Ticket tk=Tk.find(type1(trainID,K));
             for(int i=0;i<(int)vec.size();i++){
                 const Pendtype &x=vec[i].second;
-                if(tk.query_ticket(K,x.l,x.r)>=x.num){
-                    tk.Update_ticket(K,x.l,x.r,x.num); 
+                if(tk.query_ticket(x.l,x.r)>=x.num){
+                    tk.Update_ticket(x.l,x.r,x.num); 
                     auto us=Get_ticket.find(type1(x.username,x.kth));
                     us.time=-us.time;
                     Get_ticket.modify(type1(x.username,x.kth),us);
                     inqu_ticket.erase(vec[i].first);
                 }
             }
-            Tk.modify(trainID,tk);
+            Tk.modify(type1(trainID,K),tk);
         }
     }
     puts("0");
